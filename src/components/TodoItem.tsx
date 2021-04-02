@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import styled, { css } from "styled-components";
 import { MdDone, MdDelete } from "react-icons/md";
-import { useTodoDispatch } from "../TodoContext";
+import { useTodoDispatch, updateTodo, deleteTodo } from "../TodoContext";
 
 const Remove = styled.div`
   display: flex;
@@ -58,8 +58,23 @@ const Text = styled.div<{ done: boolean }>`
 
 const TodoItem: React.FC<Todo> = ({ id, done, text }) => {
   const dispatch = useTodoDispatch();
-  const onToggle = () => dispatch({ type: "TOGGLE", id: id });
-  const onRemove = () => dispatch({ type: "REMOVE", id: id });
+  // const onToggle = () => dispatch({ type: "TOGGLE", todo: { id, done, text } });
+  const onToggle = async () => {
+    const { isError, todo, error } = await updateTodo(id, done);
+
+    isError
+      ? dispatch({ type: "fetchError", error: error })
+      : dispatch({ type: "UPDATE", todo: todo });
+  };
+
+  // const onRemove = () => dispatch({ type: "REMOVE", id: id });
+  const onRemove = async () => {
+    const { isError, todo, error } = await deleteTodo(id);
+
+    isError
+      ? dispatch({ type: "fetchError", error: error })
+      : dispatch({ type: "UPDATE", todo: todo });
+  };
   return (
     <TodoItemBlock onClick={onToggle}>
       <CheckCircle done={done}>{done && <MdDone />}</CheckCircle>

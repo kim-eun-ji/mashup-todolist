@@ -3,70 +3,123 @@ import React, {
   createContext,
   Dispatch,
   useContext,
-  useRef,
+  useState,
 } from "react";
+import { useEffect } from "react";
+import { firestore } from "./firebase";
 
-const initialTodos: Todo[] = [
-  {
-    id: 1,
-    text: "프로젝트 생성하기",
-    done: true,
-  },
-  {
-    id: 2,
-    text: "컴포넌트 스타일링하기",
-    done: false,
-  },
-  {
-    id: 3,
-    text: "Context 만들기",
-    done: false,
-  },
-  {
-    id: 4,
-    text: "기능 구현하기",
-    done: false,
-  },
-];
+const TODO_COLLECTION_ID = "todo";
+
+let initialTodos: Todo[] = [];
 
 type Action =
   | { type: "CREATE"; todo: Todo }
-  | { type: "TOGGLE"; id: number }
-  | { type: "REMOVE"; id: number };
+  | { type: "TOGGLE"; todo?: Todo[] }
+  | { type: "REMOVE"; id: string }
+  | { type: "GET_TODO"; todo?: Todo[] }
+  | { type: "fetchError"; error: any }
+  | { type: "UPDATE"; todo?: Todo[] };
 
+//useReducer는 기본적으로 '비동기 로직'을 포함하는 '비동기 액션'을 dispatch 하지않음
+//대신, 비동기 함수를 dispatch 이전에 호출해서 비동기 로직을 실행하고, 그 결과 값을 dispatch함
 const todoReducer = (state: Todo[], action: Action) => {
   switch (action.type) {
     case "CREATE":
+      // firestore
+      //   .collection("todo")
+      //   .add({ // 데이터 추가
+      //     id: action.todo.id,
+      //     done: action.todo.done,
+      //     text: action.todo.text,
+      //   })
+      //   .then((res) => { // 추가된 데이터와 관련된 정보가 전달됨
+
+      //   })
+
       return state.concat(action.todo);
     case "TOGGLE":
-      return state.map((todo) =>
-        todo.id === action.id ? { ...todo, done: !todo.done } : todo
-      );
+      return state;
+    // return state.map((todo) =>
+    //   todo.id === action.todo.id ? { ...todo, done: !todo.done } : todo
+    // );
     case "REMOVE":
       return state.filter((todo) => todo.id !== action.id);
+    case "UPDATE":
+      if (action.todo) state = action.todo;
+      return state;
     default:
       throw new Error(`Unhandled action type: ${action}`);
   }
 };
 
 const TodoStateContext = createContext<Todo[]>([
-  { id: -1, done: false, text: "" },
+  { id: "", done: false, text: "" },
 ]);
 const TodoDispatchContext = createContext<Dispatch<Action>>(() => null);
-// ? 맞는지 모르겠음..
-const TodoNextIdContext = createContext<React.MutableRefObject<number>>({
-  current: 5,
-});
+
+export async function getTodos() {
+  try {
+    const data = await firestore.collection(TODO_COLLECTION_ID).get();
+    const todos: Todo[] = await data.docs.map((doc) => {
+      return {
+        id: doc.id,
+        done: doc.data().done,
+        text: doc.data().text,
+      };
+    });
+    return { isError: false, todo: todos };
+  } catch (error) {
+    return { isError: true, error: error };
+  }
+}
+
+export async function updateTodo(id: string, done: boolean) {
+  try {
+    await firestore
+      .collection(TODO_COLLECTION_ID)
+      .doc(id)
+      .update({ done: !done });
+    return await getTodos();
+  } catch (error) {
+    return { isError: true, error: error };
+  }
+}
+
+export async function deleteTodo(id: string) {
+  try {
+    await firestore.collection(TODO_COLLECTION_ID).doc(id).delete();
+    return await getTodos();
+  } catch (error) {
+    return { isError: true, error: error };
+  }
+}
+
+export async function createTodo({ done, text }: Todo) {
+  try {
+    await firestore.collection(TODO_COLLECTION_ID).add({
+      // 데이터 추가
+      done: done,
+      text: text,
+    });
+    return await getTodos();
+  } catch (error) {
+    return { isError: true, error: error };
+  }
+}
 
 export const TodoProvider: React.FC = ({ children }) => {
   const [state, dispatch] = useReducer(todoReducer, initialTodos);
-  const nextId = useRef<number>(5);
+  // const nextId = useRef<number>(state.length + 1);
+  useEffect(() => {
+    getTodos().then((todoData) => {
+      dispatch({ type: "UPDATE", todo: todoData.todo });
+    });
+  }, []);
+
   return (
     <TodoStateContext.Provider value={state}>
       <TodoDispatchContext.Provider value={dispatch}>
-        <TodoNextIdContext.Provider value={nextId}>
-          {children}
-        </TodoNextIdContext.Provider>
+        {children}
       </TodoDispatchContext.Provider>
     </TodoStateContext.Provider>
   );
@@ -84,14 +137,6 @@ export const useTodoState = () => {
 
 export const useTodoDispatch = () => {
   const context = useContext(TodoDispatchContext);
-  if (!context) {
-    throw new Error("Cannot find TodoProvider");
-  }
-  return context;
-};
-
-export const useTodoNextId = () => {
-  const context = useContext(TodoNextIdContext);
   if (!context) {
     throw new Error("Cannot find TodoProvider");
   }

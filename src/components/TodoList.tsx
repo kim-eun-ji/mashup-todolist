@@ -12,7 +12,6 @@ const TodoListBlock = styled.div`
 
 const TodoList: React.FC = () => {
   const todos = useTodoState();
-  console.log(todos);
   return (
     <TodoListBlock>
       {todos.map((todo) => (

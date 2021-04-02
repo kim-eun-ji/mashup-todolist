@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import styled, { css } from "styled-components";
 import { MdAdd } from "react-icons/md";
-import { useTodoDispatch, useTodoNextId } from "../TodoContext";
+import { useTodoDispatch, createTodo } from "../TodoContext";
 
 const CircleButton = styled.button<{ open: boolean }>`
   background: #38d9a9;
@@ -81,18 +81,34 @@ const TodoCreate: React.FC = () => {
   const [value, setValue] = useState("");
 
   const dispatch = useTodoDispatch();
-  const nextId = useTodoNextId();
+  // const nextId = useTodoNextId();
 
   const onToggle = () => setOpen(!open);
   const onChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setValue(e.target.value);
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+
+  // const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  //   e.preventDefault(); // prevent refresh
+  //   dispatch({
+  //     type: "CREATE",
+  //     todo: { id: "", done: false, text: value },
+  //   });
+  //   // nextId.current++;
+  //   setOpen(!open);
+  // };
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); // prevent refresh
-    dispatch({
-      type: "CREATE",
-      todo: { id: nextId.current, done: false, text: value },
+    const { isError, todo, error } = await createTodo({
+      id: "",
+      done: false,
+      text: value,
     });
-    nextId.current++;
+
+    isError
+      ? dispatch({ type: "fetchError", error: error })
+      : dispatch({ type: "UPDATE", todo: todo });
+
     setOpen(!open);
   };
 
