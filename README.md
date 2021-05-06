@@ -4,7 +4,7 @@ This project is my first project with react + typescript.
 
 [벨로퍼트와 함께하는 모던 리액트](https://react.vlpt.us/) 3장 실습 내용이 담긴 프로젝트입니다.
 
-기존 예제 + typescript + firebase
+기존 예제 + typescript + firebase(현재중지상태)
 
 ## 라이브러리
 
